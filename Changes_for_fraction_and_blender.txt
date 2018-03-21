@@ -1,0 +1,37 @@
+can_send_task.c:
+	// Last time is the upper code, and it is used to use remote control's switch to start M2006
+				switch (remote_info.rc.s1) {
+					case 1: // switch up: fast blender
+						send_gimbal_cur(gim.current[0],gim.current[1],500);
+					break;
+					case 2: // switch down
+						send_gimbal_cur(gim.current[0],gim.current[1],0);
+					break;
+					case 3: //switch middle: slow blender
+						send_gimbal_cur(gim.current[0],gim.current[1],400);
+					break;
+				}
+
+bsp_io.c:
+	void turn_on_friction_wheel(uint16_t spd)
+{
+  LEFT_FRICTION  = spd;
+  RIGHT_FIRCTION = spd;
+	LEFT_42_FRACTION = spd;
+	RIGHT_42_FRACTION = spd;
+}
+
+void turn_off_friction_wheel(void)
+{
+  LEFT_FRICTION  = 1000;
+  RIGHT_FIRCTION = 1000;
+	LEFT_42_FRACTION = 1000;
+	RIGHT_42_FRACTION = 1000;
+}
+	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_4); // 42mm fraction wheel
+	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_3);
+
+sys_config.h:
+	#define LEFT_42_FRACTION     TIM8->CCR4	
+#define RIGHT_42_FRACTION    TIM8->CCR3
+
