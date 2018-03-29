@@ -28,8 +28,15 @@ void turn_off_friction_wheel(void)
 	LEFT_42_FRACTION = 1000;
 	RIGHT_42_FRACTION = 1000;
 }
+void pwm_device_init(void)
+{
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2); // ctrl imu temperature
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); // beep
+  HAL_TIM_PWM_Start(&htim12, TIM_CHANNEL_2); // friction wheel //TODO
+  HAL_TIM_PWM_Start(&htim12, TIM_CHANNEL_1);
 	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_4); // 42mm fraction wheel
 	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_3);
+}
 
 sys_config.h:
 	#define LEFT_42_FRACTION     TIM8->CCR4	
