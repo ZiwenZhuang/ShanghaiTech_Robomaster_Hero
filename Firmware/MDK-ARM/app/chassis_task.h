@@ -7,9 +7,9 @@
 
 
 #define FILTER_BUF 5
-
+#define CHASSIS_CURRENT_RATIO (20.0/16384.0f)
 #define CHASSIS_TASK_PERIOD 10
-
+//#define CHASSIS_ONLY
 typedef struct
 {
   uint16_t ecd;   // encoder value
@@ -51,6 +51,7 @@ typedef struct
   float           vy; // left/right
   float           vw; // 
 
+	float 					power_limit_ratio;
 	chassis_mode_e  ctrl_mode;
   chassis_mode_e  last_ctrl_mode;
 	
@@ -71,15 +72,14 @@ void chasis_remote_handle(void);
 void print_encoder(moto_measure_t*);
 int is_Motor_Reversed(int i);
 uint8_t chassis_is_controllable(void);
+uint8_t chassis_is_auto(void);
+uint8_t chassis_is_follow(void);
 void mecanum_calc(float vx, float vy, float vw, int16_t speed[]);
-void test_chassis(void);
+void chassis_mode_switch(void);
+void limit_chassis_power(void);
+float chassis_twist_angle(void);
 
 extern chassis_t chassis;
 #endif
-/*
-#define CAN_3510_M1_ID 0x201
-#define CAN_3510_M2_ID 0x202
-#define CAN_3510_M3_ID 0x203
-#define CAN_3510_M4_ID 0x204
-*/
+
 

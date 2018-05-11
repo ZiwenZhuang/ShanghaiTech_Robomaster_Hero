@@ -31,6 +31,7 @@
 #include "sys_config.h"
 #include "gimbal_task.h"
 #include "imu_task.h"
+#include "shoot_task.h"
 //float yaw_zgyro_angle;
 void get_moto_offset(moto_measure_t* ptr, CAN_HandleTypeDef* hcan)
 {
@@ -50,7 +51,7 @@ void HAL_CAN_RxCpltCallback(CAN_HandleTypeDef* _hcan){
     case CAN_3510_M3_ID:
     case CAN_3510_M4_ID:
     {
-			if(gim.ctrl_mode == GIMBAL_INIT)break;
+			//if(gim.ctrl_mode == GIMBAL_INIT)break; //TODO
       static uint8_t i;
       i = _hcan->pRxMsg->StdId - CAN_3510_M1_ID;
 			if(chassis.motor[i].msg_cnt++ <= 50)
@@ -75,13 +76,13 @@ void HAL_CAN_RxCpltCallback(CAN_HandleTypeDef* _hcan){
       err_detector_hook(GIMBAL_PIT_OFFLINE);
     }
     break;
-		#if 0
+
     case CAN_TRIGGER_MOTOR_ID:
     {
       if (_hcan == &TRIGGER_CAN)
       {
-        moto_trigger.msg_cnt++;
-        moto_trigger.msg_cnt <= 10 ? get_moto_offset(&moto_trigger, _hcan) : encoder_data_handle(&moto_trigger, _hcan);
+        trig.motor.msg_cnt++;
+        trig.motor.msg_cnt <= 10 ? get_moto_offset(&trig.motor, _hcan) : encoder_data_handle(_hcan,&trig.motor );
         err_detector_hook(TRIGGER_MOTO_OFFLINE);
       }
       else
@@ -89,7 +90,17 @@ void HAL_CAN_RxCpltCallback(CAN_HandleTypeDef* _hcan){
       }
     }
     break;
-    #endif
+
+		case (CAN_CHASSIS_ZGYRO_ID): // gyro
+     { 
+           int  temp_yaw_angle = (int32_t)(_hcan->pRxMsg->Data[0]<<24)|(int32_t)(_hcan->pRxMsg->Data[1]<<16) 
+            | (int32_t)(_hcan->pRxMsg->Data[2]<<8) | (int32_t)(_hcan->pRxMsg->Data[3]);
+            
+         
+            float this_yaw_angle = -((float)temp_yaw_angle*0.01);
+						//printf("CAN_CHASSIS_ZGYRO (yaw) data is %f \r\n",this_yaw_angle);
+    }break;
+		
 		
 		// The gyro in can2 
 		case 0xA:
@@ -104,6 +115,8 @@ void HAL_CAN_RxCpltCallback(CAN_HandleTypeDef* _hcan){
 			can2_buf[2]=*(float *)&(_hcan->pRxMsg->Data[0]);
 		}break;
 
+		
+		
     default:
     {
     }
@@ -220,3 +233,85 @@ void send_chassis_cur(int16_t iq1, int16_t iq2, int16_t iq3, int16_t iq4){
   CHASSIS_CAN.pTxMsg->Data[7] = iq4;
   HAL_CAN_Transmit(&CHASSIS_CAN, 10);
 }
+
+#if 0
+void CAN1_Configuration(void)
+{
+    CAN_InitTypeDef        can;
+    CAN_FilterInitTypeDef  can_filter;
+    GPIO_InitTypeDef       gpio;
+    NVIC_InitTypeDef       nvic;
+
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_CAN1, ENABLE);
+
+    GPIO_PinAFConfig(GPIOA, GPIO_PinSource11, GPIO_AF_CAN1);
+    GPIO_PinAFConfig(GPIOA, GPIO_PinSource12, GPIO_AF_CAN1);
+
+    gpio.GPIO_Pin = GPIO_Pin_11 | GPIO_Pin_12;
+    gpio.GPIO_Mode = GPIO_Mode_AF;
+    GPIO_Init(GPIOA, &gpio);
+    
+    nvic.NVIC_IRQChannel = CAN1_RX0_IRQn;
+    nvic.NVIC_IRQChannelPreemptionPriority = 0;
+    nvic.NVIC_IRQChannelSubPriority = 2;
+    nvic.NVIC_IRQChannelCmd = ENABLE;
+    NVIC_Init(&nvic);
+    
+//    nvic.NVIC_IRQChannel = CAN1_TX_IRQn;
+//    nvic.NVIC_IRQChannelPreemptionPriority = 1;
+//    nvic.NVIC_IRQChannelSubPriority = 1;
+//    nvic.NVIC_IRQChannelCmd = ENABLE;
+//    NVIC_Init(&nvic); 
+    
+    CAN_DeInit(CAN1);
+    CAN_StructInit(&can);
+    
+    can.CAN_TTCM = DISABLE;
+    can.CAN_ABOM = DISABLE;
+    can.CAN_AWUM = DISABLE;
+    can.CAN_NART = DISABLE;
+    can.CAN_RFLM = DISABLE;
+    can.CAN_TXFP = ENABLE;
+    can.CAN_Mode = CAN_Mode_Normal;
+    can.CAN_SJW  = CAN_SJW_1tq;
+    can.CAN_BS1 = CAN_BS1_9tq;
+    can.CAN_BS2 = CAN_BS2_4tq;
+    can.CAN_Prescaler = 3;   //CAN BaudRate 42/(1+9+4)/3=1Mbps
+    CAN_Init(CAN1, &can);
+
+    can_filter.CAN_FilterNumber=0;
+    can_filter.CAN_FilterMode=CAN_FilterMode_IdMask;
+    can_filter.CAN_FilterScale=CAN_FilterScale_32bit;
+    can_filter.CAN_FilterIdHigh=0x0000;
+    can_filter.CAN_FilterIdLow=0x0000;
+    can_filter.CAN_FilterMaskIdHigh=0x0000;
+    can_filter.CAN_FilterMaskIdLow=0x0000;
+    can_filter.CAN_FilterFIFOAssignment=0;//the message which pass the filter save in fifo0
+    can_filter.CAN_FilterActivation=ENABLE;
+    CAN_FilterInit(&can_filter);
+    
+    CAN_ITConfig(CAN1,CAN_IT_FMP0,ENABLE);
+}
+
+void CAN1_RX0_IRQHandler(void)
+{
+    CanRxMsg rx_message;    
+    
+    if (CAN_GetITStatus(CAN1,CAN_IT_FMP0)!= RESET) 
+	{
+
+       if(rx_message.StdId == 0x401)
+        { 
+            gyro_ok_flag = 1;
+            temp_yaw_angle = (int32_t)(rx_message.Data[0]<<24)|(int32_t)(rx_message.Data[1]<<16) 
+            | (int32_t)(rx_message.Data[2]<<8) | (int32_t)(rx_message.Data[3]);
+            
+            last_yaw_angle = this_yaw_angle;
+            this_yaw_angle = -((float)temp_yaw_angle*0.01);            
+        }
+    }
+}
+
+#endif
+

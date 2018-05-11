@@ -82,7 +82,8 @@ TaskHandle_t judge_unpack_task_t;
 TaskHandle_t pc_unpack_task_t;
 TaskHandle_t serial_debug_task_t;
 TaskHandle_t test_task_t;
-TaskHandle_t PC_communication_task_t;
+TaskHandle_t PC_receive_task_t;
+TaskHandle_t PC_send_task_t;
 
 osTimerId chassis_timer_id;
 osTimerId gimbal_timer_id;
@@ -195,21 +196,19 @@ void MX_FREERTOS_Init(void) {
 		
 		
 		 
+		osThreadDef(PC_receiveTask, PC_receive_task, osPriorityNormal, 0, 128);  // wait for uart signal 
+    PC_receive_task_t = osThreadCreate(osThread(PC_receiveTask), NULL);
+		
+		osThreadDef(testTask, test_task, osPriorityNormal, 0, 512);  // 20 ms
+    test_task_t = osThreadCreate(osThread(testTask), NULL);
+		
 		
 		// low priority
-		
-		#ifdef SERIAL_DEBUG
-		osThreadDef(serialDebugTask, serial_debug_task, osPriorityBelowNormal, 0, 512);  // 20 ms
-    serial_debug_task_t = osThreadCreate(osThread(serialDebugTask), NULL);
-		
-		#else 
-		osThreadDef(PC_communicationTask, PC_communication_task, osPriorityNormal, 0, 128);  // wait for uart signal 
-    PC_communication_task_t = osThreadCreate(osThread(PC_communicationTask), NULL);
-		#endif
+		osThreadDef(PC_sendTask, PC_send_task, osPriorityBelowNormal, 0, 128);  //  30 ms
+    PC_send_task_t = osThreadCreate(osThread(PC_sendTask), NULL);
 		
 		
-		osThreadDef(testTask, test_task, osPriorityBelowNormal, 0, 512);  // 20 ms
-    test_task_t = osThreadCreate(osThread(testTask), NULL);
+		
     /* unpack task */
 	
   taskEXIT_CRITICAL();
@@ -225,10 +224,19 @@ void StartDefaultTask(void const * argument)
 {
   /* init code for FATFS */
   MX_FATFS_Init();
-	
 	// update the offset		
 	osDelay(1000); // wait for imu and ecd to be stable
-	osTimerStart(chassis_timer_id, CHASSIS_TASK_PERIOD);
+	osTimerStart(chassis_timer_id, CHASSIS_TASK_PERIOD); 
+	read_gimbal_cali(); // read from the flash, if the gimbal cali data is 0, set the default value
+	for(;;)
+	{
+		if(LAUNCH_INFANTRY)
+		{
+			break;
+		}
+		osDelay(1);
+	}
+	
 	for(;;)
 	{
 		if(gimbal_is_controllable())

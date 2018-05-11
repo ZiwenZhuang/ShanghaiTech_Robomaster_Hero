@@ -690,6 +690,11 @@
               <FileType>1</FileType>
               <FilePath>.\app\init.c</FilePath>
             </File>
+            <File>
+              <FileName>test.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\app\test.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -731,14 +736,14 @@
           <GroupName>RmLib</GroupName>
           <Files>
             <File>
-              <FileName>ramp.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\rmlib\ramp.c</FilePath>
-            </File>
-            <File>
               <FileName>pid.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\rmlib\pid.c</FilePath>
+            </File>
+            <File>
+              <FileName>ramp.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\rmlib\ramp.c</FilePath>
             </File>
             <File>
               <FileName>data_fifo.c</FileName>
@@ -766,9 +771,14 @@
               <FilePath>.\app\detect_task.c</FilePath>
             </File>
             <File>
-              <FileName>Serial_Debug.c</FileName>
+              <FileName>calibrate.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\app\Serial_Debug.c</FilePath>
+              <FilePath>.\rmlib\calibrate.c</FilePath>
+            </File>
+            <File>
+              <FileName>calibrate.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\rmlib\calibrate.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -776,14 +786,19 @@
           <GroupName>ControlTask</GroupName>
           <Files>
             <File>
-              <FileName>chassis_task.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\app\chassis_task.c</FilePath>
-            </File>
-            <File>
               <FileName>RemoteTask.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\app\RemoteTask.c</FilePath>
+            </File>
+            <File>
+              <FileName>RemoteTask.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\app\RemoteTask.h</FilePath>
+            </File>
+            <File>
+              <FileName>chassis_task.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\app\chassis_task.c</FilePath>
             </File>
             <File>
               <FileName>imu_task.c</FileName>
@@ -825,6 +840,11 @@
         <Group>
           <GroupName>CommunicationTask</GroupName>
           <Files>
+            <File>
+              <FileName>Serial_Debug.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\app\Serial_Debug.c</FilePath>
+            </File>
             <File>
               <FileName>PC_communication_task.c</FileName>
               <FileType>1</FileType>

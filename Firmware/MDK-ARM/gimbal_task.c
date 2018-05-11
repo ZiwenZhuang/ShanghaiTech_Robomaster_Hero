@@ -37,36 +37,31 @@
 #include "string.h"
 #include "imu_task.h"
 #include "detect_task.h"
-
+#include "calibrate.h"
 //#define OLD_TRIGGER
 /* gimbal patrol angle (degree)*/
 #define PATROL_ANGLE     40
 /* patrol period time (ms) */
 #define PATROL_PERIOD    1500
 /* gimbal back center time (ms) */
-#define BACK_CENTER_TIME 2500
+#define BACK_CENTER_TIME 2000 //TODO
+#define PIT_ECD_DIR  (- 1.0f) 
+#define YAW_ECD_DIR  (- 1.0f)
+#define YAW_IMU_DIR  (- 1.0f)
+#define PIT_IMU_DIR  ( 1.0f)
+/* keyboard mode gimbal speed limit */
+
+#define GIMBAL_PC_MOVE_RATIO_PIT 0.1f 
+#define GIMBAL_PC_MOVE_RATIO_YAW -1.0f 
 
 
 /* stack usage monitor */
 UBaseType_t gimbal_stack_surplus;
 
-/* for debug */
-//int yaw_a_fdb;
-//int yaw_a_ref;
-//int yaw_s_fdb;
-//int yaw_s_ref;
-
-//int pit_a_fdb;
-//int pit_a_ref;
-//int pit_s_fdb;
-//int pit_s_ref;
-
 /* gimbal task global parameter */
 gimbal_t gim;
-
-/* gimbal task static parameter */
-/* shot buff parameter */
-
+int PIT_ECD_CENTER_OFFSET = 201;
+int YAW_ECD_CENTER_OFFSET = 3801;
 /* control ramp parameter */
 static ramp_t     yaw_ramp = RAMP_GEN_DAFAULT;
 static ramp_t     pit_ramp = RAMP_GEN_DAFAULT;
@@ -75,24 +70,11 @@ uint32_t gimbal_time_last;
 int gimbal_time_ms;
 uint32_t patrol_count;
 
-#if 0
-void gimbal_self_check(void)
-{
-  if ( !read_gimbal_offset(&(gim.pit_center_offset), &(gim.yaw_center_offset),
-                           &(cv_buff.pit_offset),    &(cv_buff.yaw_offset)) )
-  {
-    /* gimbal has not been calibrated */
-    no_cali_data_handle();
-  }
-}
-#endif 
 
 extern TaskHandle_t can_msg_send_task_t;
 extern TaskHandle_t shoot_task_t;
 void gimbal_task(void const *argu)
 {
- 
-	//printf("gimbal mode is %d \r\n",gim.ctrl_mode);
 	
 	//get sensor info
 	update_gimbal_sensor();
@@ -112,22 +94,20 @@ void gimbal_task(void const *argu)
     break;
   }
 
-  
-  
-  pid_calc(&pid_yaw, gim.pid.yaw_angle_fdb, gim.pid.yaw_angle_ref);
-  pid_calc(&pid_pit, gim.pid.pit_angle_fdb, gim.pid.pit_angle_ref);
-  
+#ifdef NO_CASCADE_CONTROL
+	pid_calc(&pid_yaw_speed, gim.pid.yaw_angle_fdb, gim.pid.yaw_angle_ref);
+  pid_calc(&pid_pit_speed, gim.pid.pit_angle_fdb, gim.pid.pit_angle_ref);
+#else
 	cascade_pid_ctrl();
+#endif  
   
-  pid_calc(&pid_yaw_speed, gim.pid.yaw_speed_fdb, gim.pid.yaw_speed_ref);
-  pid_calc(&pid_pit_speed, gim.pid.pit_speed_fdb, gim.pid.pit_speed_ref);
+ 
 
   /* safe protect */
   if (gimbal_is_controllable())
   {
-    gim.current[0] = YAW_MOTO_POSITIVE_DIR*pid_yaw_speed.out;
-    gim.current[1] = PIT_MOTO_POSITIVE_DIR*pid_pit_speed.out;
-    //glb_cur.gimbal_cur[2] = pid_trigger_speed.out;
+    gim.current[0] = pid_yaw_speed.out;
+    gim.current[1] = pid_pit_speed.out;
   }
   else
   {
@@ -137,17 +117,30 @@ void gimbal_task(void const *argu)
   }
   
   //memset(gim.current, 0, sizeof(gim.current));
-	
+
   osSignalSet(can_msg_send_task_t, GIMBAL_MOTOR_MSG_SEND);
   osSignalSet(shoot_task_t, SHOT_TASK_EXE_SIGNAL);
-	//printf("gimbal_task done T %d\r\n",osKernelSysTick());
+	
   gimbal_stack_surplus = uxTaskGetStackHighWaterMark(NULL);
 
 }
 
 
 
+float remote_ctrl_map(float offset,float step){
+	static float out=0;
+	out+=offset;
+	if(out>step){
+		out-=step;
+		return step;
+	}
+	else{
+		float tmp=out;
+		out=0;
+		return tmp;
+	}
 
+}
 
 
 
@@ -160,24 +153,36 @@ void gimbal_task(void const *argu)
 *  s2 right ... 
 */
 void close_loop_handle(void){
+	
+
   static float chassis_angle_tmp=0;
   static float limit_angle_range = 3;
-  
-  gim.pid.pit_angle_fdb = gim.sensor.pit_relative_angle_ecd;
-  gim.pid.yaw_angle_fdb = gim.sensor.yaw_relative_angle_imu ; // 
-  //TODO
-	//gim.pid.yaw_angle_fdb = gim.sensor.yaw_relative_angle;
+  static float step= GIMBAL_RC_MOVE_RATIO_YAW*330;
 	
-  /* chassis angle relative to gim.pid.yaw_angle_fdb */
+  gim.pid.pit_angle_fdb = gim.sensor.pit_relative_angle_ecd;
+	#ifdef GIMBAL_FOLLOW_CHASSIS
+	gim.pid.yaw_angle_fdb = gim.sensor.yaw_relative_angle_ecd ; // 
+	#else
+	gim.pid.yaw_angle_fdb = gim.sensor.yaw_relative_angle_imu; // 
+	#endif 
+  
+ 
   chassis_angle_tmp =  gim.pid.yaw_angle_ref ;
-  /* limit gimbal yaw axis angle */
 	
   if ((gim.pid.yaw_angle_fdb >= chassis_angle_tmp+ YAW_ANGLE_MIN - limit_angle_range) && \
       (gim.pid.yaw_angle_fdb <= chassis_angle_tmp+ YAW_ANGLE_MAX + limit_angle_range))
   {
-    gim.pid.yaw_angle_ref += -remote_info.rc.ch2 * GIMBAL_RC_MOVE_RATIO_YAW
-                       + remote_info.mouse.x * GIMBAL_PC_MOVE_RATIO_YAW;
-    VAL_LIMIT(gim.pid.yaw_angle_ref, chassis_angle_tmp + YAW_ANGLE_MIN, chassis_angle_tmp + YAW_ANGLE_MAX);
+		if(KEY_X) gim.pid.yaw_angle_ref = 0;
+		
+    gim.pid.yaw_angle_ref += YAW_ECD_DIR*remote_ctrl_map( 
+											 (KEY_Q)?(step):0 -  (KEY_E)?(-step):0 
+		#ifndef GIMBAL_FOLLOW_CHASSIS
+											 - remote_info.rc.ch2 * GIMBAL_RC_MOVE_RATIO_YAW
+                       + remote_info.mouse.x * GIMBAL_PC_MOVE_RATIO_YAW 
+		#endif
+			,step);
+		
+    VAL_LIMIT(gim.pid.yaw_angle_ref, chassis_angle_tmp + YAW_ANGLE_MIN, chassis_angle_tmp + YAW_ANGLE_MAX);	
   }
   /* limit gimbal pitch axis angle */
   if ((gim.sensor.pit_relative_angle_ecd >= PIT_ANGLE_MIN - limit_angle_range) && \
@@ -187,6 +192,7 @@ void close_loop_handle(void){
                        + remote_info.mouse.y * GIMBAL_PC_MOVE_RATIO_PIT;
     VAL_LIMIT(gim.pid.pit_angle_ref, PIT_ANGLE_MIN, PIT_ANGLE_MAX);
   }
+
 }
 
 
@@ -240,7 +246,7 @@ void init_mode_handle(void){
     gim.pid.yaw_angle_ref = gim.sensor.yaw_relative_angle_ecd * ( 1 - ramp_calc(&yaw_ramp));
     gim.pid.yaw_angle_fdb = gim.sensor.yaw_relative_angle_ecd;
 		
-    if (gim.pid.yaw_angle_fdb >= -1.5f && gim.pid.yaw_angle_fdb <= 1.5f)
+    if (gim.pid.yaw_angle_fdb >= -3.0f && gim.pid.yaw_angle_fdb <= 3.0f)
     {
       /* yaw arrive and switch gimbal state */
       gim.ctrl_mode = GIMBAL_FOLLOW_ZGYRO;
@@ -254,11 +260,22 @@ void init_mode_handle(void){
 }
 void cascade_pid_ctrl(void){
 
+	// feedback position , output speed
+	pid_calc(&pid_yaw, gim.pid.yaw_angle_fdb, gim.pid.yaw_angle_ref);
+  pid_calc(&pid_pit, gim.pid.pit_angle_fdb, gim.pid.pit_angle_ref);
+	
+	
   gim.pid.yaw_speed_ref = pid_yaw.out;
   gim.pid.pit_speed_ref = pid_pit.out;
  
   gim.pid.yaw_speed_fdb = gim.sensor.yaw_palstance;
   gim.pid.pit_speed_fdb = gim.sensor.pit_palstance;
+	
+	// feedback speed , output current
+  pid_calc(&pid_yaw_speed, gim.pid.yaw_speed_fdb, gim.pid.yaw_speed_ref);
+  pid_calc(&pid_pit_speed, gim.pid.pit_speed_fdb, gim.pid.pit_speed_ref);
+	
+
 }
 
 /**
@@ -288,76 +305,35 @@ int16_t get_relative_pos(int16_t raw_ecd, int16_t center_offset){
 
 
 void update_gimbal_sensor(void){
-	static float yaw_ecd_ratio = YAW_MOTO_POSITIVE_DIR*YAW_DECELE_RATIO*ENCODER_ANGLE_RATIO;
-  static float pit_ecd_ratio = PIT_MOTO_POSITIVE_DIR*PIT_DECELE_RATIO*ENCODER_ANGLE_RATIO;
-  gim.sensor.yaw_relative_angle_ecd = yaw_ecd_ratio*get_relative_pos(gim.yaw_motor.ecd, YAW_ECD_CENTER_OFFSET);
-  gim.sensor.pit_relative_angle_ecd = pit_ecd_ratio*get_relative_pos(gim.pit_motor.ecd, PIT_ECD_CENTER_OFFSET);
+	static float yaw_ecd_ratio = YAW_ECD_DIR*YAW_DECELE_RATIO*ENCODER_ANGLE_RATIO;
+  static float pit_ecd_ratio = PIT_ECD_DIR*PIT_DECELE_RATIO*ENCODER_ANGLE_RATIO;
+  gim.sensor.yaw_relative_angle_ecd =  yaw_ecd_ratio*get_relative_pos(gim.yaw_motor.ecd, YAW_ECD_CENTER_OFFSET);
+  gim.sensor.pit_relative_angle_ecd =  pit_ecd_ratio*get_relative_pos(gim.pit_motor.ecd, PIT_ECD_CENTER_OFFSET);
 	
 	 //gim.sensor.yaw_relative_angle_imu updated in imu task
 	
  // ecd offset update in bsp_can
-	gim.sensor.yaw_relative_angle_imu = atti.yaw - gim.sensor.yaw_offset_angle_imu;
-	gim.sensor.pit_relative_angle_imu = atti.roll- gim.sensor.pit_offset_angle_imu;
+	gim.sensor.yaw_relative_angle_imu = YAW_IMU_DIR*(atti.yaw - gim.sensor.yaw_offset_angle_imu);
+	gim.sensor.pit_relative_angle_imu = (atti.roll- gim.sensor.pit_offset_angle_imu);
 	
 	 /* get gimbal relative palstance */
-  gim.sensor.yaw_palstance = - mpu_data.gz / 16.384f; //unit: dps
-  gim.sensor.pit_palstance = mpu_data.gx / 16.384f; //unit: dps
+  gim.sensor.yaw_palstance =   YAW_IMU_DIR* (mpu_data.gy) / 16.384f; //unit: dps
+  gim.sensor.pit_palstance = - PIT_IMU_DIR* mpu_data.gx / 16.384f; //unit: dps
 }
 
-
-
-
-
-
-
-
-#if 0
-static void gimbal_patrol_handle(void){
-  static int16_t patrol_period = PATROL_PERIOD/GIMBAL_PERIOD;
-  static int16_t patrol_angle  = PATROL_ANGLE;
-  
-  gim.pid.pit_angle_fdb = gim.sensor.pit_relative_angle;
-  gim.pid.yaw_angle_fdb = gim.sensor.yaw_relative_angle;
-  
-  patrol_count++;
-  gim.pid.yaw_angle_ref = patrol_angle*sin(2*PI/patrol_period*patrol_count);
-  gim.pid.pit_angle_ref = 0;
+// called when initialize the gimbal 
+// read from flash and set the cali data
+void read_gimbal_cali(void){
+	cali_data_read(); // read the calibrate data
+	if(cali_param.gim_cali_data[CALI_GIMBAL_CENTER].calied_done != CALIED_FLAG )
+	{
+		gimbal_cali_hook(PIT_ECD_CENTER_OFFSET,YAW_ECD_CENTER_OFFSET);
+		cali_data_read();
+	}
+	
+	PIT_ECD_CENTER_OFFSET = cali_param.gim_cali_data[CALI_GIMBAL_CENTER].pitch_offset;
+	YAW_ECD_CENTER_OFFSET = cali_param.gim_cali_data[CALI_GIMBAL_CENTER].yaw_offset;
+	
 }
 
-void pc_position_ctrl_handle(void){
-  gim.pid.pit_angle_fdb = gim.sensor.pit_relative_angle;
-  gim.pid.yaw_angle_fdb = gim.sensor.yaw_relative_angle;
-  
-  taskENTER_CRITICAL();
-  gim.pid.pit_angle_ref = pc_rece_mesg.gimbal_control_data.pit_ref;
-  gim.pid.yaw_angle_ref = pc_rece_mesg.gimbal_control_data.yaw_ref;
-  taskEXIT_CRITICAL();
-}
-
-
-void no_action_handle(void){
-  if (gim.input.no_action_flag == 1)
-  {
-    if ((HAL_GetTick() - gim.input.no_action_time) < 1500)
-    {
-      close_loop_handle();
-    }
-    else
-    {
-      gim.input.no_action_flag = 2;
-      gim.pid.yaw_angle_ref = 0;
-    }
-  }
-  
-  if (gim.input.no_action_flag == 2)
-  {
-    gim.pid.pit_angle_fdb = gim.sensor.pit_relative_angle;
-    gim.pid.yaw_angle_fdb = gim.sensor.yaw_relative_angle;
-  }
-}
-
-
-
-
-#endif 
 

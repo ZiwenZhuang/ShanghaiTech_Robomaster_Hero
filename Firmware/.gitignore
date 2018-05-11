@@ -36,3 +36,5 @@ JLinkLog.txt
 *.uvguix.*
 *.hex
 *.bin
+Firmware/MDK-ARM/JLinkLog.txt
+MDK-ARM/bin/test.bin

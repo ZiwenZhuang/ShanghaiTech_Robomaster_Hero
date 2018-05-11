@@ -69,7 +69,7 @@ void cali_param_init(void)
   */
 void gimbal_cali_hook(int32_t pit_ecd, int32_t yaw_ecd)
 {
-  if (cali_param.gim_cali_data[CALI_GIMBAL_CENTER].cali_cmd == 1)
+  //if (cali_param.gim_cali_data[CALI_GIMBAL_CENTER].cali_cmd == 1)
   {
     cali_param.gim_cali_data[CALI_GIMBAL_CENTER].pitch_offset = pit_ecd;
     cali_param.gim_cali_data[CALI_GIMBAL_CENTER].yaw_offset   = yaw_ecd;
@@ -77,7 +77,7 @@ void gimbal_cali_hook(int32_t pit_ecd, int32_t yaw_ecd)
     cali_param.gim_cali_data[CALI_GIMBAL_CENTER].cali_cmd     = 0;
     save_cali_data();
   }
-  if (cali_param.gim_cali_data[CALI_CAMERA_CENTER].cali_cmd == 1)
+  //if (cali_param.gim_cali_data[CALI_CAMERA_CENTER].cali_cmd == 1)
   {
     cali_param.gim_cali_data[CALI_CAMERA_CENTER].pitch_offset = pit_ecd;
     cali_param.gim_cali_data[CALI_CAMERA_CENTER].yaw_offset   = yaw_ecd;

@@ -15,6 +15,8 @@
 #include "gimbal_task.h"
 #include "stdlib.h"
 #include "shoot_task.h"
+#include "bsp_io.h"
+#include "calibrate.h"
 void sys_init()
 {
 	MX_GPIO_Init();
@@ -39,12 +41,22 @@ void sys_init()
 
 void pram_init(void)
 {
+	//hardware device initialize
+	pwm_device_init();
+  mpu_device_init();
+  can_device_init();
+  can_receive_start();
+  dbus_uart_init();
+	//BEEP_TUNE = 0;
+ // BEEP_CTRL = 0;//g_err.beep_ctrl;
+  //software parameter initialize
 	chassis_param_init();
 	detector_param_init();
 	imu_param_init();
 	gimbal_param_init();
 	gimbal_back_param();
 	shoot_param_init();
+	cali_param_init();
 }
 
 void chassis_param_init(void)
@@ -73,47 +85,51 @@ void gimbal_param_init(void)
   gim.last_ctrl_mode = GIMBAL_RELAX;
  
 	
-	PID_struct_init(&pid_chassis_angle, POSITION_PID, 300, 50,
-                  4 , 0.01, 0);
+	PID_struct_init(&pid_chassis_angle, POSITION_PID, 500, 10,
+                  10 , 0.0, 0);  // TODO
 	/*gimbal offset */
   
   /* pitch axis motor pid parameter */
-  PID_struct_init(&pid_pit, POSITION_PID, 300, 10,
-                  30, 0, 0); //
+#ifdef NO_CASCADE_CONTROL
+	 PID_struct_init(&pid_pit_speed, POSITION_PID, 7000, 1000,
+                  240, 0.1, 0);
+		PID_struct_init(&pid_yaw_speed, POSITION_PID, 7000, 2000,
+                  200, 0.1, 0 );
+#else
+  PID_struct_init(&pid_pit, POSITION_PID, 200, 10,
+                  30, 0.1, 0); //
   PID_struct_init(&pid_pit_speed, POSITION_PID, 7000, 1000,
                   15, 0.1, 0);
 
   /* yaw axis motor pid parameter */
-  PID_struct_init(&pid_yaw, POSITION_PID, 1000, 50,
-                  30, 0, 0); //
+  PID_struct_init(&pid_yaw, POSITION_PID, 1000, 50, // TODO MAX=1000 previously
+                  30, 0.1, 0); //
   PID_struct_init(&pid_yaw_speed, POSITION_PID, 7000, 2000,
-                  13, 0, 0 );
-  //pid_yaw_speed.min_out= 200;
-	//pid_yaw.min_out=100;
-	
-  /* bullet trigger motor pid parameter */
-  PID_struct_init(&pid_trigger, POSITION_PID, 10000, 2000,
-                  15, 0, 10);
-  PID_struct_init(&pid_trigger_speed, POSITION_PID, 7000, 3000,
-                  1.5, 0.1, 5);
+                  15, 0.1, 0 );
+#endif
+  
 }
 
 
 void shoot_param_init(void){
 	
-	
   memset(&shoot, 0, sizeof(shoot_t));
   
   shoot.ctrl_mode      = SHOT_DISABLE;
-  shoot.fric_wheel_spd = DEFAULT_FRIC_WHEEL_SPEED;
+  shoot.fric_wheel_spd = 2000;
   //shot.remain_bullets = 0;
-  
+  turn_off_friction_wheel();
+	
   memset(&trig, 0, sizeof(trigger_t));
-  
+ 
   trig.dir             = 1;
   trig.feed_bullet_spd = 2000;
   trig.c_shot_spd      = 4000;
   trig.state         = TRIG_INIT;
-  
+	
+	PID_struct_init(&pid_trigger, POSITION_PID, 10000, 7000,
+                  30, 0.3, 0);
+  PID_struct_init(&pid_trigger_speed, POSITION_PID, 10000, 5000,
+                  20, 0.2, 0); 
 }
 

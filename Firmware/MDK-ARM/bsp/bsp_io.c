@@ -18,16 +18,16 @@ void turn_on_friction_wheel(uint16_t spd)
 {
   LEFT_FRICTION  = spd;
   RIGHT_FIRCTION = spd;
-	LEFT_42_FRACTION = spd;
-	RIGHT_42_FRACTION = spd;
+	//LEFT_42_FRACTION = spd;
+	//RIGHT_42_FRACTION = spd;
 }
 
 void turn_off_friction_wheel(void)
 {
   LEFT_FRICTION  = 1000;
   RIGHT_FIRCTION = 1000;
-	LEFT_42_FRACTION = 1000;
-	RIGHT_42_FRACTION = 1000;
+	//LEFT_42_FRACTION = 1000;
+	//RIGHT_42_FRACTION = 1000;
 }
 
 void mpu_heat_ctrl(uint16_t pwm_pulse)
@@ -42,8 +42,8 @@ void pwm_device_init(void)
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); // beep
   HAL_TIM_PWM_Start(&htim12, TIM_CHANNEL_2); // friction wheel //TODO
   HAL_TIM_PWM_Start(&htim12, TIM_CHANNEL_1);
-	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_4); // 42mm fraction wheel
-	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_3);
+	//HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_4); // 42mm fraction wheel
+	//HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_3);
 }
 
 uint8_t sd_insert(void)

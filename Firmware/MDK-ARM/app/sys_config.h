@@ -11,6 +11,14 @@
 
 #define DEFAULT_TUNE  300
 #define RC_RESOLUTION 660.0f
+/******************************* config macros *********************************************/
+
+#define CALI_DONE
+#define GIMBAL_FOLLOW_CHASSIS
+//#define NO_CASCADE_CONTROL // only use position as the feedback but no imu data
+//#define SERIAL_DEBUG
+#define LAUNCH_INFANTRY (remote_info.rc.s2 == RC_MI && remote_info.rc.last_s2 == RC_DN && remote_info.rc.s1 == RC_DN)
+
 
 /*************************chassis setting*********************************************************/
 /* remote mode chassis move speed limit */
@@ -22,14 +30,14 @@
 #define CHASSIS_RC_MOVE_RATIO_Y 1.0f
 /* chassis rotation speed (deg/s) */
 /* used only chassis open loop mode */
-#define CHASSIS_RC_MAX_SPEED_R 200.0f
+#define CHASSIS_RC_MAX_SPEED_R 150.0f
 #define CHASSIS_RC_MOVE_RATIO_R 1.0f
 
 /* keyboard mode speed limit */
-/* left and right speed (mm/s) */
+
 #define CHASSIS_KB_MAX_SPEED_X  1000.0f 
 #define CHASSIS_KB_MOVE_RATIO_X 1.0f
-/* back and forward speed (mm/s) */
+
 #define CHASSIS_KB_MAX_SPEED_Y  1000.0f
 #define CHASSIS_KB_MOVE_RATIO_Y 1.0f
 
@@ -40,8 +48,13 @@
 
 #define RADIUS     76  // the radius of wheel(mm)
 #define PERIMETER  478 //the perimeter of wheel(mm)
-#define WHEELTRACK 403  // wheel track distance(mm)
-#define WHEELBASE  385 // wheelbase distance(mm)
+
+//#define WHEELTRACK 403  // wheel track distance(mm)
+//#define WHEELBASE  385 // wheelbase distance(mm)
+
+#define WHEELTRACK 740  // wheel track distance(mm)
+#define WHEELBASE  550 // wheelbase distance(mm)
+
 #define GIMBAL_X_OFFSET 150 // gimbal is relative to chassis center x axis offset(mm) 
 #define GIMBAL_Y_OFFSET 0 /* gimbal is relative to chassis center y axis offset(mm) */
 
@@ -81,32 +94,27 @@
 #define GIMBAL_RC_MOVE_RATIO_PIT 0.002f
 #define GIMBAL_RC_MOVE_RATIO_YAW 0.001f 
  
-/* keyboard mode gimbal speed limit */
 
-#define GIMBAL_PC_MOVE_RATIO_PIT 0.1f 
-#define GIMBAL_PC_MOVE_RATIO_YAW -0.04f 
 /************************** gimbal parameter ******************************************************************/
 /* the ratio of motor encoder value translate to degree */
 #define ENCODER_ANGLE_RATIO    (360.0f/8192.0f)
 #define PIT_DECELE_RATIO       1.0f /* the deceleration ratio of pitch axis motor */
 #define YAW_DECELE_RATIO       1.0f    //(5.0f/8.0f) /* the deceleration ratio of yaw axis motor */
-#define PIT_MOTO_POSITIVE_DIR  1.0f 
-#define YAW_MOTO_POSITIVE_DIR  1.0f 
 #define TRI_MOTO_POSITIVE_DIR  1.0f 
 
 /*************************** gimbal relevant *********************************/
 #define GIMBAL_CASCADE_CTRL
-#define PIT_ANGLE_MAX        10
-#define PIT_ANGLE_MIN        -20
-#define YAW_ANGLE_MAX        40
-#define YAW_ANGLE_MIN        -40
+#define PIT_ANGLE_MAX        30
+#define PIT_ANGLE_MIN        -30
+#define YAW_ANGLE_MAX        20
+#define YAW_ANGLE_MIN        -20
 #define LEFT_FRICTION        TIM12->CCR1
 #define RIGHT_FIRCTION       TIM12->CCR2
-#define LEFT_42_FRACTION     TIM8->CCR4
-#define RIGHT_42_FRACTION    TIM8->CCR3
+//#define LEFT_42_FRACTION     TIM8->CCR4
+//#define RIGHT_42_FRACTION    TIM8->CCR3
 /**************************shot  setting********************************/
 /* shot speed */
-#define DEFAULT_FRIC_WHEEL_SPEED 1500 //maximum value is 2500
+#define DEFAULT_FRIC_WHEEL_SPEED 2500 //maximum value is 2500
 #define TRIGGER_MOTOR_SPEED      2000  /* shot frequence */
 /************************ uart relevant********************************************/
 #define PC_HUART huart6
@@ -141,14 +149,17 @@ else if((val) >= (max))\
 }\
 } while(0)\
 
+#define ABS(val) (val > 0 ? val:-val)
 
-#endif
+
+
 
 /* imu temperature control *******************************************/
 #define IMU_PWM_PULSE      TIM3->CCR2
 #define DEFAULT_IMU_TEMP   50
-
-
+/******************BEEP*********************/
+#define BEEP_TUNE TIM3->ARR
+#define BEEP_CTRL TIM3->CCR1
 /* communication task macros ******************************************/
 #define JUDGE_UART_TX_SIGNAL   ( 1 << 0 )
 #define JUDGE_UART_IDLE_SIGNAL ( 1 << 1 )
@@ -163,3 +174,7 @@ else if((val) >= (max))\
 
 #define SHOT_TASK_EXE_SIGNAL   ( 1 << 8 )
 #define INFO_GET_EXE_SIGNAL    ( 1 << 9 )
+
+
+
+#endif

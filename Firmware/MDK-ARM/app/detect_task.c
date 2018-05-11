@@ -119,8 +119,14 @@ void global_err_detector_init(void)
   */
 void err_detector_hook(int err_id)
 {
-  if (g_err.list[err_id].enable)
+	#if 0
+	if(err_id <8)
+			printf("err_detector_hook invoked id %d\r\n",err_id);
+	#endif
+  if (g_err.list[err_id].enable){
       g_err.list[err_id].dev->last_time = HAL_GetTick();
+		
+	}
 }
 
 void detector_param_init(void)
@@ -139,6 +145,7 @@ void detector_param_init(void)
   * @retval    None
   * @usage     used in CAN/usart.. rx interrupt callback
   */
+
 uint32_t detect_time_last;
 int detect_time_ms;
 void detect_task(void const *argu)
@@ -164,9 +171,9 @@ void detect_task(void const *argu)
       g_err.beep_ctrl = 0;
       LED_G_ON;
     }
-    
+    g_err.beep_ctrl = 0;
     //BEEP_TUNE = g_err.beep_tune;
-    //BEEP_CTRL = 0;//g_err.beep_ctrl;
+   // BEEP_CTRL = 0;//g_err.beep_ctrl;
     
     detect_stack_surplus = uxTaskGetStackHighWaterMark(NULL);
     
@@ -178,7 +185,7 @@ static void module_offline_detect(void)
 {
   int max_priority = 0;
   int err_cnt      = 0;
-  for (uint8_t id = GIMBAL_GYRO_OFFLINE; id <= TRIGGER_MOTO_OFFLINE; id++)
+  for (uint8_t id = CHASSIS_M1_OFFLINE; id <= TRIGGER_MOTO_OFFLINE; id++)
   {
     g_err.list[id].dev->delta_time = HAL_GetTick() - g_err.list[id].dev->last_time;
     if (g_err.list[id].enable 
@@ -281,7 +288,8 @@ static void module_offline_callback(void)
         g_err.beep_ctrl = 0;
       }
     }break;
-    
+		
+    #if 0
     case CHASSIS_GYRO_OFFLINE:
     {
       if (g_err.err_count == 1
@@ -299,7 +307,8 @@ static void module_offline_callback(void)
         g_err.beep_ctrl = 0;
       }
     }break;
-    
+    #endif
+		
     default:
     {
       LED_R_ON;

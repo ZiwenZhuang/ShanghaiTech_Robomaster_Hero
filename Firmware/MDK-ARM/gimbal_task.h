@@ -5,9 +5,7 @@
 #include "chassis_task.h"
 /* gimbal control period time (ms) */
 #define GIMBAL_PERIOD 5
-#define CALI_DONE
-#define PIT_ECD_CENTER_OFFSET 5750
-#define YAW_ECD_CENTER_OFFSET 3330
+
 
 
 typedef enum
@@ -99,7 +97,7 @@ static void close_loop_handle(void);
 
 
 static void cascade_pid_ctrl(void);
-
+float remote_ctrl_map(float offset,float step);
 void gimbal_param_init(void);
 void gimbal_back_param(void);
 uint8_t gimbal_is_controllable(void);
@@ -108,4 +106,6 @@ void gimbal_self_check(void);
 void cascade_pid_ctrl(void);
 void update_gimbal_sensor(void);
 int16_t get_relative_pos(int16_t raw_ecd, int16_t center_offset);
+void no_cascade_pid_ctrl(void);
+void read_gimbal_cali(void); // called when initialize the gimbal 
 #endif
