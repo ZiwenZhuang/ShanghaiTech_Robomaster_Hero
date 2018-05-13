@@ -23,7 +23,7 @@
 #define distance_difference 1
 
 // perform blend for certain time, singal thread;
-void blend(Servo serco, unsigned int total_time);
+void blend(Servo servo, unsigned int total_time);
 
 // check if it is time to open the door
 bool should_open();
