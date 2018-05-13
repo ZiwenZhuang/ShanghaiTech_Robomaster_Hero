@@ -3,14 +3,10 @@
 Servo servo;
 
 void setup() {
-  pinMode(door_open_pin, OUTPUT);
-  pinMode(door_close_pin, OUTPUT);
-  digitalWrite(door_open_pin, LOW);
-  digitalWrite(door_close_pin, LOW);
-  pinMode(approach_start_pin, OUTPUT);
-  pinMode(approach_echo_pin, INPUT);
+  init_pins();
   servo.attach(servo_pin);
   Serial.begin(9600);
+  digitalWrite(LED_BUILTIN, LOW);
 }
 
 void loop() {
@@ -28,7 +24,13 @@ void loop() {
     blend(servo, close_time);
     // end the mission
     digitalWrite(door_close_pin, LOW);
-    while (should_open()) continue;
+    // wait for the infantry to leave
+    Serial.println("wait for leaving");
+    while (still_here()) {
+      digitalWrite(LED_BUILTIN, LOW); delay(100);
+      digitalWrite(LED_BUILTIN, HIGH); delay(100);
+    }
+    Serial.println("infantry leave");
     digitalWrite(LED_BUILTIN, LOW);
   }
 }

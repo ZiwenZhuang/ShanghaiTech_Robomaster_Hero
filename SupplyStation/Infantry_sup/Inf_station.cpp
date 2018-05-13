@@ -1,11 +1,20 @@
 #include "Inf_station.h"
 
+void init_pins() {
+  pinMode(door_open_pin, OUTPUT);
+  pinMode(door_close_pin, OUTPUT);
+  digitalWrite(door_open_pin, LOW);
+  digitalWrite(door_close_pin, LOW);
+  pinMode(approach_pin_0, INPUT);
+  pinMode(approach_pin_1, INPUT);
+}
+
 // perform blend for certain time, singal thread;
 void blend(Servo servo, unsigned int total_time) {
-  int pos = 0;
-  unsigned int end_time;
-  end_time = millis() + total_time;
-  while (millis() < end_time) {
+  unsigned int pos;
+  // The step has to be the period time, in milli-seconds
+  for (unsigned int iter = 0; iter < total_time; iter += 600) {
+    Serial.println("blending");
     for (pos = 60; pos <= 120; pos += 1) {
       // in steps of 1 degree
       servo.write(pos);
@@ -20,19 +29,10 @@ void blend(Servo servo, unsigned int total_time) {
 
 // https://sujuanyan.github.io/FABLAB_DOCUMENTATION/final_project/final_project.html
 bool should_open() {
-    double duration, range; range = 0;
-    for (int i = 0; i < trigger_time; i += 50) {
-      for (int j = 0; j < 5; j++) {
-        digitalWrite(approach_start_pin, HIGH);
-        delay(10);
-        digitalWrite(approach_start_pin, LOW);
-        duration = pulseIn(approach_echo_pin, HIGH);
-        range += duration / 2 / 29.1;
-      }
-      range = range / 5;
-      Serial.println(range);
-      if (range > (stable_distance + distance_difference)\
-          || range < (stable_distance - distance_difference)) return false;
-    }
-    return true;
+  return (digitalRead(approach_pin_0) == HIGH && digitalRead(approach_pin_1) == HIGH);
 }
+// check if the infantry is still at the gate
+bool still_here() {
+  return (digitalRead(approach_pin_0) == HIGH || digitalRead(approach_pin_1) == HIGH);
+}
+
