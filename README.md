@@ -8,3 +8,7 @@
 
 ### You can find the toturial [HERE](Tutorial/tutorial.md)
 ### 校准程序PC_Communication_PY 目录下
+## 2. Supply Station
+supply station根目录下原本是为了一个arduino板控制两个补给站，
+
+现在，Supply Station目录下，两个项目分开控制两个补给站。
