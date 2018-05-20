@@ -40,6 +40,13 @@ void loop() {
     hold_door();
     // close the gate;
     close_door();
+
+    // open the gate;
+    open_door();
+    // hold the gate;
+    hold_door();
+    // close the gate;
+    close_door();
     
     // end the mission
     digitalWrite(door_open_pin, LOW);
@@ -54,3 +61,4 @@ void loop() {
     //digitalWrite(LED_BUILTIN, LOW);
   }
 }
+
